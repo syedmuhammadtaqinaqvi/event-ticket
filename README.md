@@ -1,4 +1,4 @@
-# event-ticket
+# ticket-mobile-app
 
 DonorHub Events mobile ticket app — lookup, claim on device, and show door QR (`qrPayload` from API).
 
