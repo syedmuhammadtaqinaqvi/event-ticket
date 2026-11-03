@@ -6,7 +6,7 @@ import '../../core/theme/app_typography.dart';
 import '../../core/theme/app_ui.dart';
 import '../../data/models/ticket_record.dart';
 import '../controllers/ticket_flow_controller.dart';
-import 'ticket_qr_view.dart';
+import 'entry_pass_panel.dart';
 import 'ticket_tear_divider.dart';
 
 class QrPassSection extends StatelessWidget {
@@ -58,7 +58,12 @@ class QrPassSection extends StatelessWidget {
                         ],
                       ),
                       child: ticket.hasQr
-                          ? TicketQrView(qrPayload: ticket.qrPayload!, size: 196)
+                          ? EntryPassPanel(
+                              ticket: ticket,
+                              deviceId: controller.deviceId,
+                              onQrFallbackVisible: controller.setPassQrFallbackActive,
+                              qrSize: 196,
+                            )
                           : SizedBox(
                               height: 196,
                               child: Center(
@@ -68,7 +73,7 @@ class QrPassSection extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      'Venue door QR',
+                      ticket.prefersNfcEntry ? 'Venue entry pass' : 'Venue door QR',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             color: AppColors.textPrimary,
                             fontWeight: FontWeight.w700,
@@ -77,7 +82,9 @@ class QrPassSection extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Staff scan this code at the gate. Bare TKT reference is refused when bound to a device.',
+                      ticket.prefersNfcEntry
+                          ? 'Tap NFC at the gate when available. QR backup rotates every ${ticket.qrPeriodSeconds ?? 30}s if NFC is off.'
+                          : 'Staff scan this code at the gate. Bare TKT reference is refused when bound to a device.',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: AppColors.textSecondary,
@@ -104,48 +111,6 @@ class QrPassSection extends StatelessWidget {
                           ),
                         ],
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.all(12),
-                color: AppColors.surfaceContainerLow,
-                child: Column(
-                  children: [
-                    FilledButton(
-                      onPressed: controller.triggerWalletDownload,
-                      style: AppUi.primaryButton(),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.download_outlined, size: 20, color: AppColors.onNavy),
-                          const SizedBox(width: 8),
-                          Text('Download Ticket (PDF / Wallet)', style: AppUi.primaryButtonText),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: controller.triggerSharePass,
-                            icon: const Icon(Icons.share_outlined, size: 18),
-                            label: const Text('Share Pass'),
-                            style: AppUi.compactActionButton(),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: controller.triggerAddToCalendar,
-                            icon: const Icon(Icons.event_available_outlined, size: 18),
-                            label: const Text('Add to Cal'),
-                            style: AppUi.compactActionButton(),
-                          ),
-                        ),
-                      ],
                     ),
                   ],
                 ),

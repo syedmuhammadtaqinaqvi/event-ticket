@@ -33,7 +33,8 @@ class DeviceRegistrationSection extends StatelessWidget {
           Text('Claim on this phone', style: AppTypography.cardTitle),
           const SizedBox(height: 4),
           Text(
-            'Your door QR is tied to this device. Another phone cannot claim the same ticket.',
+            'Your door QR is tied to this device. On Android, binding survives reinstall. '
+            'Another phone cannot claim the same ticket.',
             style: AppTypography.bodyMuted,
           ),
           const SizedBox(height: AppSpacing.md),

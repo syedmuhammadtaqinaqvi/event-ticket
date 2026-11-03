@@ -4,6 +4,7 @@ import '../../core/constants/app_spacing.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/theme/app_ui.dart';
+import '../../domain/enums/lookup_error_kind.dart';
 import '../../domain/enums/ticket_flow_state.dart';
 import '../controllers/ticket_flow_controller.dart';
 
@@ -78,7 +79,12 @@ class _LookupSectionState extends State<LookupSection> {
           TextField(
             controller: _eventIdController,
             onChanged: controller.setEventId,
-            style: AppTypography.codeSm.copyWith(color: AppColors.textPrimary, fontSize: 13),
+            keyboardType: TextInputType.visiblePassword,
+            autocorrect: false,
+            enableSuggestions: false,
+            minLines: 1,
+            maxLines: 2,
+            style: AppTypography.codeSm.copyWith(color: AppColors.textPrimary, fontSize: 12),
             decoration: _fieldDecoration(
               hint: 'e.g. 154bb128-c5c6-412e-badc-041202be720d',
               icon: Icons.event_outlined,
@@ -112,8 +118,10 @@ class _LookupSectionState extends State<LookupSection> {
             _ErrorBanner(
               message: controller.lookupErrorMessage ??
                   'We could not find that ticket. Check Event ID and TKT reference.',
+              kind: controller.lookupErrorKind,
               eventId: controller.eventId,
               ticketReference: controller.ticketReference,
+              deviceLabel: controller.deviceDisplayLabel,
             ),
           ],
           const SizedBox(height: AppSpacing.md),
@@ -209,16 +217,42 @@ class _LookupSectionState extends State<LookupSection> {
 class _ErrorBanner extends StatelessWidget {
   const _ErrorBanner({
     required this.message,
+    required this.kind,
     required this.eventId,
     required this.ticketReference,
+    required this.deviceLabel,
   });
 
   final String message;
+  final LookupErrorKind kind;
   final String eventId;
   final String ticketReference;
+  final String deviceLabel;
+
+  String? get _footnote {
+    switch (kind) {
+      case LookupErrorKind.notFound:
+        return 'Reinstalling the app does not cause this — the server has no ticket for this Event ID + TKT pair. '
+            'Open your confirmation email and copy both values again.';
+      case LookupErrorKind.wrongDevice:
+        if (deviceLabel.isNotEmpty) {
+          return 'Device check: this phone’s ID is $deviceLabel. '
+              'If you deleted and reinstalled the app before an update, staff may need to unbind once.';
+        }
+        return 'If you deleted and reinstalled the app, staff may need to unbind the ticket once.';
+      case LookupErrorKind.network:
+        return 'Check Wi‑Fi or mobile data, then try Preview ticket again.';
+      case LookupErrorKind.validation:
+      case LookupErrorKind.checkedIn:
+      case LookupErrorKind.generic:
+      case LookupErrorKind.none:
+        return null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final footnote = _footnote;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -240,12 +274,25 @@ class _ErrorBanner extends StatelessWidget {
                         color: AppColors.onErrorContainer,
                       ),
                 ),
-                if (ticketReference.isNotEmpty) ...[
+                if (ticketReference.isNotEmpty &&
+                    (kind == LookupErrorKind.notFound || kind == LookupErrorKind.wrongDevice)) ...[
                   const SizedBox(height: 4),
                   Text(
                     'Event: ${eventId.isEmpty ? '—' : eventId}\nTicket: $ticketReference',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: AppColors.onErrorContainer.withValues(alpha: 0.9),
+                          fontFamily: 'monospace',
+                          fontSize: 11,
+                        ),
+                  ),
+                ],
+                if (footnote != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    footnote,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.onErrorContainer.withValues(alpha: 0.85),
+                          fontSize: 11,
                         ),
                   ),
                 ],

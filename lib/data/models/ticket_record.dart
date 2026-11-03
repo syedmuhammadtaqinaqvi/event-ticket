@@ -1,5 +1,6 @@
 import 'package:intl/intl.dart';
 
+import '../../core/services/rotating_entry_payload_codec.dart';
 import 'public_ticket_dto.dart';
 
 class TicketRecord {
@@ -14,7 +15,17 @@ class TicketRecord {
     this.ticketType,
     required this.status,
     this.placeNo,
+    this.boundDeviceId,
     this.qrPayload,
+    this.qrMode,
+    this.qrPeriodSeconds,
+    this.qrValidForSeconds,
+    this.qrSecret,
+    this.entryPreferred,
+    this.nfcPayload,
+    this.nfcRecordType,
+    this.nfcMimeType,
+    this.nfcHint,
     this.claimed = false,
     this.canClaim = true,
     this.claimedOnThisDevice = false,
@@ -32,14 +43,56 @@ class TicketRecord {
   final String? ticketType;
   final String status;
   final int? placeNo;
+  final String? boundDeviceId;
   final String? qrPayload;
+  final String? qrMode;
+  final int? qrPeriodSeconds;
+  final int? qrValidForSeconds;
+  final String? qrSecret;
+  final String? entryPreferred;
+  final String? nfcPayload;
+  final String? nfcRecordType;
+  final String? nfcMimeType;
+  final String? nfcHint;
   final bool claimed;
   final bool canClaim;
   final bool claimedOnThisDevice;
   final bool claimedOnOtherDevice;
   final DateTime? checkedInAt;
 
-  bool get hasQr => qrPayload != null && qrPayload!.isNotEmpty;
+  bool get hasRotatingEntry =>
+      qrSecret != null && qrSecret!.isNotEmpty && (qrPeriodSeconds ?? 0) > 0;
+
+  bool get hasStaticEntry =>
+      (qrPayload != null && qrPayload!.isNotEmpty) ||
+      (nfcPayload != null && nfcPayload!.isNotEmpty);
+
+  bool get hasQr => hasRotatingEntry || hasStaticEntry;
+
+  bool get prefersNfcEntry => entryPreferred == 'nfc';
+
+  String? get bindingDeviceId {
+    if (boundDeviceId == null || boundDeviceId!.isEmpty) return null;
+    return boundDeviceId;
+  }
+
+  /// Shared NFC + QR payload (rotating offline or static from API).
+  String? entryPayloadFor(String localDeviceId, {DateTime? now}) {
+    if (hasRotatingEntry) {
+      final device = bindingDeviceId ?? localDeviceId;
+      if (device.isEmpty) return null;
+      return RotatingEntryPayloadCodec.buildPayload(
+        eventId: eventId,
+        reference: reference,
+        deviceId: device,
+        qrSecret: qrSecret!,
+        qrPeriodSeconds: qrPeriodSeconds ?? RotatingEntryPayloadCodec.defaultPeriodSeconds,
+        now: now,
+      );
+    }
+    return qrPayload ?? nfcPayload;
+  }
+
   bool get isCheckedIn => status == 'checked_in';
   bool get isEntryValid => hasQr && !isCheckedIn;
 
@@ -80,7 +133,9 @@ class TicketRecord {
       ? DateFormat.jm().format(eventStart!.toLocal())
       : '—';
 
-  String get doorsSubtitle => isCheckedIn ? 'Already checked in at door' : 'Show QR at venue gate';
+  String get doorsSubtitle => isCheckedIn
+      ? 'Already checked in at door'
+      : (prefersNfcEntry ? 'Hold phone to reader or use QR backup' : 'Show entry code at venue gate');
 
   String get eventLocationLabel => locationName ?? eventTitle;
 
@@ -106,7 +161,17 @@ class TicketRecord {
       ticketType: dto.ticketType,
       status: dto.status,
       placeNo: dto.placeNo,
+      boundDeviceId: dto.boundDeviceId,
       qrPayload: dto.qrPayload,
+      qrMode: dto.qrMode,
+      qrPeriodSeconds: dto.qrPeriodSeconds,
+      qrValidForSeconds: dto.qrValidForSeconds,
+      qrSecret: dto.qrSecret,
+      entryPreferred: dto.entryPreferred,
+      nfcPayload: dto.nfcPayload,
+      nfcRecordType: dto.nfcRecordType,
+      nfcMimeType: dto.nfcMimeType,
+      nfcHint: dto.nfcHint,
       claimed: dto.claimed,
       canClaim: dto.canClaim ?? true,
       claimedOnThisDevice: dto.claimedOnThisDevice ?? false,
@@ -128,15 +193,35 @@ class TicketRecord {
       status: status,
       placeNo: placeNo,
       checkedInAt: checkedInAt,
+      boundDeviceId: boundDeviceId,
       claimed: claimed,
       canClaim: canClaim,
       claimedOnThisDevice: claimedOnThisDevice,
       claimedOnOtherDevice: claimedOnOtherDevice,
       qrPayload: qrPayload,
+      qrMode: qrMode,
+      qrPeriodSeconds: qrPeriodSeconds,
+      qrValidForSeconds: qrValidForSeconds,
+      qrSecret: qrSecret,
+      entryPreferred: entryPreferred,
+      nfcPayload: nfcPayload,
+      nfcRecordType: nfcRecordType,
+      nfcMimeType: nfcMimeType,
+      nfcHint: nfcHint,
     );
   }
 
-  TicketRecord copyWith({String? qrPayload, bool? claimed, String? status}) {
+  TicketRecord copyWith({
+    String? qrPayload,
+    String? nfcPayload,
+    String? qrSecret,
+    int? qrPeriodSeconds,
+    String? boundDeviceId,
+    String? qrMode,
+    String? entryPreferred,
+    bool? claimed,
+    String? status,
+  }) {
     return TicketRecord(
       eventId: eventId,
       reference: reference,
@@ -148,12 +233,30 @@ class TicketRecord {
       ticketType: ticketType,
       status: status ?? this.status,
       placeNo: placeNo,
+      boundDeviceId: boundDeviceId ?? this.boundDeviceId,
       qrPayload: qrPayload ?? this.qrPayload,
+      qrMode: qrMode ?? this.qrMode,
+      qrPeriodSeconds: qrPeriodSeconds ?? this.qrPeriodSeconds,
+      qrValidForSeconds: qrValidForSeconds,
+      qrSecret: qrSecret ?? this.qrSecret,
+      entryPreferred: entryPreferred ?? this.entryPreferred,
+      nfcPayload: nfcPayload ?? this.nfcPayload,
+      nfcRecordType: nfcRecordType,
+      nfcMimeType: nfcMimeType,
+      nfcHint: nfcHint,
       claimed: claimed ?? this.claimed,
       canClaim: canClaim,
       claimedOnThisDevice: claimedOnThisDevice,
       claimedOnOtherDevice: claimedOnOtherDevice,
       checkedInAt: checkedInAt,
+    );
+  }
+
+  TicketRecord withClaimBinding({required String deviceId}) {
+    return copyWith(
+      boundDeviceId: boundDeviceId ?? deviceId,
+      claimed: true,
+      qrMode: qrMode,
     );
   }
 
