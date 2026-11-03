@@ -6,7 +6,17 @@ import 'app_typography.dart';
 import 'app_ui.dart';
 
 abstract final class AppTheme {
-  static ThemeData get light {
+  static ThemeData get light => _base(textTheme: AppTypography.textTheme);
+
+  /// System fonts only — first frame on cold start (no Google Fonts network).
+  static ThemeData get fastLight => _base(
+        textTheme: Typography.englishLike2021.apply(
+          bodyColor: AppColors.textPrimary,
+          displayColor: AppColors.textPrimary,
+        ),
+      );
+
+  static ThemeData _base({required TextTheme textTheme}) {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
@@ -29,11 +39,17 @@ abstract final class AppTheme {
         onErrorContainer: AppColors.onErrorContainer,
         outlineVariant: AppColors.outlineVariant,
       ),
-      textTheme: AppTypography.textTheme,
+      textTheme: textTheme,
       inputDecorationTheme: InputDecorationTheme(
-        labelStyle: AppTypography.fieldLabel,
-        hintStyle: AppTypography.bodyMuted.copyWith(color: AppColors.textMuted),
-        floatingLabelStyle: AppTypography.fieldLabel,
+        labelStyle: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary,
+        ),
+        hintStyle: const TextStyle(
+          fontSize: 13,
+          color: AppColors.textMuted,
+        ),
       ),
       filledButtonTheme: FilledButtonThemeData(style: AppUi.primaryButton()),
       dividerTheme: const DividerThemeData(

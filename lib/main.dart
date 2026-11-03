@@ -1,11 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'app.dart';
+import 'core/bootstrap/app_preferences.dart';
 import 'core/theme/app_fonts.dart';
 
-Future<void> main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -13,7 +14,7 @@ Future<void> main() async {
       statusBarIconBrightness: Brightness.dark,
     ),
   );
-  await SharedPreferences.getInstance();
-  AppFonts.preload();
+  AppPreferences.warmUp();
+  unawaited(AppFonts.ensureLoaded());
   runApp(const EventTicketApp());
 }

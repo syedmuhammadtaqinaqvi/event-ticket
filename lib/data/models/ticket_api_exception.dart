@@ -21,6 +21,11 @@ class TicketApiException implements Exception {
 }
 
 class TicketNotFoundException extends TicketApiException {
-  TicketNotFoundException(String reference)
-      : super(message: 'Ticket not found for reference $reference', statusCode: 404);
+  TicketNotFoundException(
+    String reference, {
+    String? message,
+  }) : super(
+          message: message ?? 'Ticket not found for reference $reference',
+          statusCode: 404,
+        );
 }

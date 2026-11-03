@@ -110,12 +110,16 @@ class DonorHubTicketRemoteDataSource implements TicketRemoteDataSource {
 
     if (response.statusCode >= 200 && response.statusCode < 300 && success && ticketJson != null) {
       final ticket = PublicTicketDto.fromJson(ticketJson as Map<String, dynamic>);
-      if (!allowMissingQr && (ticket.qrPayload == null || ticket.qrPayload!.isEmpty)) {
-        throw TicketApiException(
-          message: 'Claim succeeded but QR payload was missing',
-          statusCode: response.statusCode,
-          partialTicket: ticket,
-        );
+      if (!allowMissingQr) {
+        final hasRotating = ticket.hasRotatingQrMaterial;
+        final hasStatic = ticket.hasStaticEntryPayload;
+        if (!hasRotating && !hasStatic) {
+          throw TicketApiException(
+            message: 'Claim succeeded but entry payload material was missing',
+            statusCode: response.statusCode,
+            partialTicket: ticket,
+          );
+        }
       }
       return ticket;
     }

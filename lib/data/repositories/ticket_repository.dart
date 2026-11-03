@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../core/services/device_id_service.dart';
+import '../../core/services/rotating_entry_payload_codec.dart';
 import '../../core/services/ticket_cache_service.dart';
 import '../datasources/ticket_remote_datasource.dart';
 import '../models/public_ticket_dto.dart';
@@ -11,6 +12,8 @@ import '../models/ticket_record.dart';
 abstract class TicketRepository {
   String get deviceId;
   String get deviceDisplayLabel;
+
+  Future<void> warmUp();
 
   Future<TicketRecord> lookupTicket({
     required String eventId,
@@ -25,6 +28,8 @@ abstract class TicketRepository {
   Future<List<TicketRecord>> getWalletTickets({String? eventId});
 
   TicketRecord? readCachedActiveTicket();
+
+  Future<TicketRecord?> readCachedActiveTicketWithSecret();
 
   Future<void> cacheActiveTicket(TicketRecord ticket);
 }
@@ -50,6 +55,11 @@ class TicketRepositoryImpl implements TicketRepository {
 
   @override
   String get deviceDisplayLabel => _deviceIdService.displayLabel;
+
+  @override
+  Future<void> warmUp() async {
+    await _deviceIdService.warmUp();
+  }
 
   Future<String> _appVersion() async {
     _packageInfo ??= await PackageInfo.fromPlatform();
@@ -79,7 +89,7 @@ class TicketRepositoryImpl implements TicketRepository {
       return TicketRecord.fromDto(dto);
     } on TicketApiException catch (e) {
       if (e.isNotFound) {
-        throw TicketNotFoundException(ticketReference);
+        throw TicketNotFoundException(ticketReference, message: e.message);
       }
       rethrow;
     }
@@ -97,7 +107,7 @@ class TicketRepositoryImpl implements TicketRepository {
       platform: _platform,
       appVersion: await _appVersion(),
     );
-    final record = TicketRecord.fromDto(dto);
+    final record = TicketRecord.fromDto(dto).withClaimBinding(deviceId: deviceId);
     await cacheActiveTicket(record);
     return record;
   }
@@ -111,6 +121,13 @@ class TicketRepositoryImpl implements TicketRepository {
   @override
   TicketRecord? readCachedActiveTicket() {
     final dto = _cacheService.readActiveTicket();
+    if (dto == null) return null;
+    return TicketRecord.fromDto(dto);
+  }
+
+  @override
+  Future<TicketRecord?> readCachedActiveTicketWithSecret() async {
+    final dto = await _cacheService.readActiveTicketWithSecret();
     if (dto == null) return null;
     return TicketRecord.fromDto(dto);
   }
@@ -162,6 +179,16 @@ class MockTicketRemoteDataSource implements TicketRemoteDataSource {
       ticketReference: ticketReference,
       deviceId: deviceId,
     );
+    const secret = 'mock-entry-secret-for-unit-tests';
+    const period = 30;
+    final payload = RotatingEntryPayloadCodec.buildPayload(
+      eventId: lookup.eventId,
+      reference: lookup.reference,
+      deviceId: deviceId,
+      qrSecret: secret,
+      qrPeriodSeconds: period,
+      timeStepOverride: 1_700_000_000 ~/ period,
+    );
     return PublicTicketDto(
       eventId: lookup.eventId,
       eventTitle: lookup.eventTitle,
@@ -171,8 +198,15 @@ class MockTicketRemoteDataSource implements TicketRemoteDataSource {
       seat: lookup.seat,
       holderName: lookup.holderName,
       status: lookup.status,
+      boundDeviceId: deviceId,
       claimed: true,
-      qrPayload: 'DHB1.demo-mock-payload-for-tests',
+      entryPreferred: 'nfc',
+      nfcPayload: payload,
+      nfcRecordType: 'text',
+      qrMode: 'rotating',
+      qrPeriodSeconds: period,
+      qrSecret: secret,
+      qrPayload: payload,
     );
   }
 
@@ -199,6 +233,9 @@ class MockTicketRepository implements TicketRepository {
   String get deviceDisplayLabel => 'test-dev…-id';
 
   @override
+  Future<void> warmUp() async {}
+
+  @override
   Future<TicketRecord> lookupTicket({
     required String eventId,
     required String ticketReference,
@@ -211,7 +248,9 @@ class MockTicketRepository implements TicketRepository {
       );
       return TicketRecord.fromDto(dto);
     } on TicketApiException catch (e) {
-      if (e.isNotFound) throw TicketNotFoundException(ticketReference);
+      if (e.isNotFound) {
+        throw TicketNotFoundException(ticketReference, message: e.message);
+      }
       rethrow;
     }
   }
@@ -228,7 +267,7 @@ class MockTicketRepository implements TicketRepository {
       platform: 'android',
       appVersion: '1.0.0',
     );
-    final record = TicketRecord.fromDto(dto);
+    final record = TicketRecord.fromDto(dto).withClaimBinding(deviceId: deviceId);
     _cached = record;
     return record;
   }
@@ -238,6 +277,9 @@ class MockTicketRepository implements TicketRepository {
 
   @override
   TicketRecord? readCachedActiveTicket() => _cached;
+
+  @override
+  Future<TicketRecord?> readCachedActiveTicketWithSecret() async => _cached;
 
   @override
   Future<void> cacheActiveTicket(TicketRecord ticket) async {

@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/constants/app_spacing.dart';
+import '../../core/services/screen_protection_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/ticket_record.dart';
 import '../../domain/enums/ticket_flow_state.dart';
@@ -30,10 +33,20 @@ class _TicketPortalScreenState extends State<TicketPortalScreen> {
   void initState() {
     super.initState();
     widget.controller.addListener(_onFlowChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncScreenProtection());
+  }
+
+  void _syncScreenProtection() {
+    final c = widget.controller;
+    final guardQr = c.currentState == TicketFlowState.qrActive &&
+        c.passQrFallbackActive &&
+        (c.ticket?.hasQr ?? false);
+    unawaited(ScreenProtectionService.setEnabled(guardQr));
   }
 
   void _onFlowChanged() {
     setState(() {});
+    _syncScreenProtection();
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
         0,
@@ -46,6 +59,7 @@ class _TicketPortalScreenState extends State<TicketPortalScreen> {
   @override
   void dispose() {
     widget.controller.removeListener(_onFlowChanged);
+    unawaited(ScreenProtectionService.disable());
     _scrollController.dispose();
     super.dispose();
   }

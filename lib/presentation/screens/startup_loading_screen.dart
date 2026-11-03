@@ -1,11 +1,28 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_typography.dart';
 
-/// Shown for milliseconds while prefs/repo initialize — not a blank white screen.
+/// Instant first paint — system fonts only (no Google Fonts network on cold start).
 class StartupLoadingScreen extends StatelessWidget {
-  const StartupLoadingScreen({super.key});
+  const StartupLoadingScreen({super.key, this.message});
+
+  final String? message;
+
+  static const _titleRegular = TextStyle(
+    fontSize: 34,
+    fontWeight: FontWeight.w600,
+    letterSpacing: -0.8,
+    height: 1.1,
+    color: AppColors.textPrimary,
+  );
+
+  static const _titleAccent = TextStyle(
+    fontSize: 34,
+    fontWeight: FontWeight.w800,
+    letterSpacing: -0.6,
+    height: 1.1,
+    color: AppColors.navyMid,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -18,14 +35,28 @@ class StartupLoadingScreen extends StatelessWidget {
             Center(
               child: Text.rich(
                 TextSpan(
-                  children: [
-                    TextSpan(text: 'Event ', style: AppTypography.brandSplash),
-                    TextSpan(text: 'Ticket', style: AppTypography.brandSplashAccent),
+                  children: const [
+                    TextSpan(text: 'Event ', style: _titleRegular),
+                    TextSpan(text: 'Ticket', style: _titleAccent),
                   ],
                 ),
                 textAlign: TextAlign.center,
               ),
             ),
+            if (message != null) ...[
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  message!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ),
+            ],
             const Spacer(flex: 4),
             const SizedBox(
               width: 24,
