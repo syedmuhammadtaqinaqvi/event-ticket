@@ -1,6 +1,6 @@
 {
-    "name": "event_ticket",
-    "short_name": "event_ticket",
+    "name": "Event Ticket",
+    "short_name": "Event Ticket",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#FFFFFF",
